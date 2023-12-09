@@ -300,6 +300,8 @@ def batchnorm_backward(dout, cache):
     (gamma, x_norm, x_mu, var_inv) = cache
     
     dgamma = np.sum(dout * x_norm, axis=0) # N,D -> D, 
+    print(f'{dout.shape=}')
+    print(f'{gamma.shape=}')
     dxnorm = dout * gamma # N,D -> N,D
     dbeta = np.sum(dout, axis=0) # N,D -> D,
 
@@ -400,7 +402,8 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out, cache = batchnorm_forward(x.T, gamma.reshape(-1, 1), beta.reshape(-1, 1), {'mode': 'train'})
+    out = out.T
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -433,8 +436,28 @@ def layernorm_backward(dout, cache):
     # still apply!                                                            #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    dout = dout.T
 
-    pass
+    ## BATCH NORM BACKWARD CODE (identical except dgamma & dbeta axis is changed from 0 to 1) ##
+    N, _ = dout.shape
+    (gamma, x_norm, x_mu, var_inv) = cache
+    
+    dgamma = np.sum(dout * x_norm, axis=1) # N,D -> D, 
+    dxnorm = dout * gamma # N,D -> N,D
+    dbeta = np.sum(dout, axis=1) # N,D -> D,
+
+    dxmu = dxnorm * var_inv  # N,D -> N,D 
+    dvar_inv = np.sum(dxnorm * x_mu, axis=0)  # N,D -> D,
+
+    dvar = dvar_inv * -0.5 * var_inv ** 3 # D,
+    dx = dxmu
+
+    dxmu += dvar * 2/N * x_mu
+    dmu = -1 * np.sum(dxmu, axis=0)
+    
+    dx += 1/N * dmu 
+    ## BATCH NORM BACKWARD CODE END ##
+    dx = dx.T
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
