@@ -4,8 +4,9 @@ import torchvision.transforms as T
 import numpy as np
 from .image_utils import SQUEEZENET_MEAN, SQUEEZENET_STD
 from scipy.ndimage.filters import gaussian_filter1d
+import torch.nn as nn
 
-def compute_saliency_maps(X, y, model):
+def compute_saliency_maps(X: torch.Tensor, y: torch.Tensor, model: nn.Module):
     """
     Compute a class saliency map using the model for images X and labels y.
 
@@ -34,7 +35,10 @@ def compute_saliency_maps(X, y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    y_pred = model(X)
+    loss = y_pred.gather(1, y.view(-1, 1)).sum()
+    loss.backward()
+    saliency = X.grad.abs().max(1).values
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -76,7 +80,13 @@ def make_fooling_image(X, target_y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    for _ in range(100):
+        score = model(X_fooling)[:, target_y]
+        score.backward()
+        with torch.no_grad():
+            X_fooling += learning_rate * (X_fooling.grad / torch.norm(X_fooling.grad))
+        X_fooling.grad = None  # reset grad
+        
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -94,7 +104,12 @@ def class_visualization_update_step(img, model, target_y, l2_reg, learning_rate)
     ########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    score = model(img)[:, target_y]
+    score_reg = score - l2_reg * (img ** 2).sum()
+    score_reg.backward()
+    with torch.no_grad():
+        img += learning_rate * img.grad / torch.norm(img.grad)
+    img.grad = None
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ########################################################################
